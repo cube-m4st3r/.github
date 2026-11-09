@@ -1,0 +1,63 @@
+---
+# Reusable workflow: pre-commit + full-history gitleaks scan.
+# Call it from any repo:
+#   jobs:
+#     lint:
+#       uses: cube-m4st3r/.github/.github/workflows/pre-commit.yml@main
+name: pre-commit
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: Python used to run pre-commit and its Python-based hooks
+        type: string
+        default: "3.14" # ansible-lint's hook pins python3.14
+
+permissions:
+  contents: read
+
+jobs:
+  pre-commit:
+    name: pre-commit hooks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Cache pre-commit environments
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Run all hooks
+        # gitleaks is skipped here: its hook only scans *staged* changes,
+        # which are empty in CI. The job below scans the full history instead.
+        env:
+          SKIP: gitleaks
+        run: pre-commit run --all-files --show-diff-on-failure --color=always
+
+  gitleaks:
+    name: gitleaks (full history)
+    runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: 8.30.1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # every commit, not just the latest
+
+      - name: Install gitleaks
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP" gitleaks
+
+      - name: Scan repository history
+        run: '"$RUNNER_TEMP/gitleaks" git --redact --verbose .'
