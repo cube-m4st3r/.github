@@ -1,0 +1,28 @@
+---
+# yamllint config shared by all cube-m4st3r repos.
+# The rule tweaks below match what ansible-lint expects, so both tools agree.
+extends: default
+
+ignore: |
+  .git/
+  .cache/
+  .venv/
+  collections/ansible_collections/
+  context/
+
+rules:
+  braces:
+    max-spaces-inside: 1
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: false
+  document-start: disable
+  line-length:
+    max: 160
+    level: warning
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
+  truthy:
+    allowed-values: ["true", "false"]
+    check-keys: false # GitHub Actions uses a bare `on:` key
